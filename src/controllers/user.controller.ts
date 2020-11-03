@@ -21,8 +21,8 @@ export class UserController implements IController {
   private initializeRoutes() {
     this.router.post(`${this.path}/signup`, this.signup);
     this.router.post(`${this.path}/login`, this.login);
-
     // this.router.use(checkJwt);
+    this.router.get(`${this.path}/approval-users`, this.getApprovalUsers);
   }
 
   // Signup Controller
@@ -112,6 +112,30 @@ export class UserController implements IController {
       return res.status(500).json({ success: false, message: "Server Error" });
     }
   };
+
+  private getApprovalUsers = async (req: Request, res: Response) => {
+    try {
+      const users = await this.userModel
+        .find({ approver: true })
+        .select("userId name email _id")
+        .lean();
+      let userMap: IUserMap = {
+        allIds: [],
+        byId: {},
+      };
+      users.forEach((user) => {
+        userMap.allIds.push(user._id);
+        userMap.byId[user._id] = user;
+      });
+      return res.json({
+        data: {
+          userMap,
+        },
+      });
+    } catch (e) {
+      return res.status(500).json({ success: false, message: "Server Error" });
+    }
+  };
 }
 
 export interface ILoginRequest {
@@ -124,4 +148,16 @@ export interface ISignupRequest {
   email: string;
   password: string;
   approver: boolean;
+}
+
+interface IUserMap {
+  allIds: string[];
+  byId: {
+    [id: string]: {
+      _id: string;
+      userId: string;
+      email: string;
+      name: string;
+    };
+  };
 }
