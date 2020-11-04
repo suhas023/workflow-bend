@@ -1,9 +1,9 @@
 import { Router, Request, Response } from "express";
-import { v4 as uuidv4 } from "uuid";
 import { IController } from "../interfaces";
 import { userModel, IUser } from "../models";
 import { genSaltSync, hashSync, compareSync } from "bcrypt";
 import { sign } from "jsonwebtoken";
+import { checkJwt } from "../middlewares";
 
 export class UserController implements IController {
   public path = "/user";
@@ -21,7 +21,8 @@ export class UserController implements IController {
   private initializeRoutes() {
     this.router.post(`${this.path}/signup`, this.signup);
     this.router.post(`${this.path}/login`, this.login);
-    // this.router.use(checkJwt);
+    // Verify for JWT token from this point
+    this.router.use(checkJwt);
     this.router.get(`${this.path}/approval-users`, this.getApprovalUsers);
   }
 
@@ -48,13 +49,12 @@ export class UserController implements IController {
     const newUser = new this.userModel();
     newUser.name = details.name;
     newUser.email = details.email;
-    newUser.userId = uuidv4();
     newUser.approver = details.approver;
     newUser.passHash = hashSync(details.password, genSaltSync(this.saltRounds));
     try {
       await newUser.save();
       const token = sign(
-        { userId: newUser.userId, email: newUser.email },
+        { userId: newUser._id, email: newUser.email },
         this.secret
       );
 
@@ -64,7 +64,7 @@ export class UserController implements IController {
           token: token,
           name: newUser.name,
           email: newUser.email,
-          userId: newUser.userId,
+          userId: newUser._id,
         },
       });
     } catch (e) {
@@ -94,10 +94,7 @@ export class UserController implements IController {
           .json({ success: false, message: "Invalid Password" });
       }
 
-      const token = sign(
-        { userId: user.userId, email: user.email },
-        this.secret
-      );
+      const token = sign({ userId: user._id, email: user.email }, this.secret);
 
       // Return 200 with token
       return res.json({
@@ -105,7 +102,7 @@ export class UserController implements IController {
           token: token,
           name: user.name,
           email: user.email,
-          userId: user.userId,
+          userId: user._id,
         },
       });
     } catch (e) {
@@ -155,7 +152,6 @@ interface IUserMap {
   byId: {
     [id: string]: {
       _id: string;
-      userId: string;
       email: string;
       name: string;
     };

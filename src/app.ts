@@ -3,7 +3,7 @@ import bodyParser from "body-parser";
 import cors from "cors";
 import morgan from "morgan";
 import mongoose from "mongoose";
-import { UserController } from "./controllers";
+import { UserController, WorkflowController } from "./controllers";
 import { IController } from "./interfaces";
 
 class App {
@@ -45,6 +45,6 @@ class App {
 }
 
 const port = 5002;
-const controllers = [new UserController()];
+const controllers = [new UserController(), new WorkflowController()];
 const app = new App(port, controllers);
 app.listen();
