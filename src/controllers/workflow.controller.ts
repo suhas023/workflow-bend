@@ -16,6 +16,7 @@ export class WorkflowController implements IController {
     // Requires JWT to be present
     this.router.use(checkJwt);
     this.router.post(`${this.path}/create`, this.createWorkflow);
+    this.router.get(`${this.path}`, this.getWorkflows);
   }
 
   private createWorkflow = async (req: Request, res: Response) => {
@@ -33,7 +34,7 @@ export class WorkflowController implements IController {
     details.levels.forEach((level) => {
       const approvalType = level.approvalType;
       const approvals: IApproval[] = level.userIds.map((userId) => ({
-        userId,
+        user: userId,
         action: "blocked",
       }));
       levelList.push({
@@ -49,7 +50,6 @@ export class WorkflowController implements IController {
 
     try {
       await newWorkflow.save();
-      await this.notifyNextUsers(newWorkflow);
     } catch (e) {
       return res.status(500).json({ message: "Server Error" });
     }
@@ -63,6 +63,22 @@ export class WorkflowController implements IController {
     const currentLevel = workflow.levels[currentLevelIndex];
     const approvalType = currentLevel.approvalType;
   };
+
+  // GET all the workflows created by a user
+  private getWorkflows = async (req: Request, res: Response) => {
+    const userId = (<any>req).user.userId;
+    let workflows: IWorkflow[];
+
+    try {
+      workflows = await this.workflowModel
+        .find({ createdBy: userId })
+        .populate("levels.approvals.user", "name email");
+      return res.json({ data: { workflows } });
+    } catch (e) {
+      return res.json({ message: "Server Error" });
+    }
+  };
+
 }
 
 type ILevelType = "sequential" | "round-robin" | "any one";

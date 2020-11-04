@@ -11,7 +11,7 @@ export type ILevelStatus = "blocked" |"active" | "terminated" | "executed";
 export type IWorkflowStatus =  "active" | "terminated" | "executed";
 
 export interface IApproval {
-  userId: string;
+  user: string;
   action: IApprovalAction;
 }
 
@@ -52,7 +52,7 @@ const workflowSchema = new Schema({
       },
       approvals: [
         {
-          userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+          user: { type: Schema.Types.ObjectId, ref: "User", required: true },
           action: {
             type: String,
             enum: ["blocked", "pending", "approve", "reject", "rejectAndRemove"],
