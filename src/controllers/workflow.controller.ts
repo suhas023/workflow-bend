@@ -102,7 +102,7 @@ export class WorkflowController implements IController {
 
     try {
       workflows = await this.workflowModel
-        .find({ createdBy: userId })
+        .find({ createdBy: userId }).sort({_id: -1})
         .populate("levels.approvals.user", "name email");
       return res.json({ data: { workflows } });
     } catch (e) {

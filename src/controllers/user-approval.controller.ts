@@ -27,6 +27,7 @@ export class UserApprovalController implements IController {
     // Requires JWT to be present
     this.router.use(checkJwt);
     this.router.get(`${this.path}/pending`, this.getPendingApprovals);
+    this.router.get(`${this.path}/history`, this.getApprovalHistory);
     this.router.post(`${this.path}/action`, this.setUserAction);
   }
 
@@ -36,7 +37,10 @@ export class UserApprovalController implements IController {
     let pendingApprovalResponse: IApprovalResponse[] = [];
 
     try {
-      approvals = await this.userApprovalModel.find({ user: userId }).lean();
+      approvals = await this.userApprovalModel
+        .find({ user: userId })
+        .sort({ _id: -1 })
+        .lean();
       // Filter to pending workflows
       for (let i = 0; i < approvals.length; i++) {
         const levelIndex = approvals[i].levelIndex;
@@ -48,7 +52,8 @@ export class UserApprovalController implements IController {
         if (!workflow) continue;
         if (
           workflow.levels[levelIndex].approvals[approvalIndex].action ===
-          "pending"
+            "pending" &&
+          workflow.levels[levelIndex].status === "active"
         )
           pendingApprovalResponse.push({ ...approvals[i], workflow });
       }
@@ -62,6 +67,42 @@ export class UserApprovalController implements IController {
       return res.status(500).json({ message: "Server Error" });
     }
   };
+
+  private getApprovalHistory = async (req: Request, res: Response) => {
+    const userId = (<any>req).user.userId;
+    let approvals: IUserApproval[] | null;
+    let pendingApprovalResponse: IApprovalResponse[] = [];
+
+    try {
+      approvals = await this.userApprovalModel
+        .find({ user: userId })
+        .sort({ _id: -1 })
+        .lean();
+      for (let i = 0; i < approvals.length; i++) {
+        const levelIndex = approvals[i].levelIndex;
+        const approvalIndex = approvals[i].approvalIndex;
+        const workflowId = approvals[i].workflow;
+        const workflow = await this.workflowModel
+          .findById(workflowId)
+          .populate("levels.approvals.user", "name email");
+        if (!workflow) continue;
+        if (
+          workflow.levels[levelIndex].approvals[approvalIndex].action !==
+            "pending" ||
+          workflow.levels[levelIndex].status !== "active"
+        )
+          pendingApprovalResponse.push({ ...approvals[i], workflow });
+      }
+
+      return res.json({
+        data: {
+          pendingApprovals: pendingApprovalResponse,
+        },
+      });
+    } catch (e) {
+      return res.status(500).json({ message: "Server Error" });
+    }
+  }
 
   private setUserAction = async (req: Request, res: Response) => {
     const { approvalId, action } = req.body;
