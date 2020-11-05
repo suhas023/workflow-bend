@@ -3,7 +3,11 @@ import bodyParser from "body-parser";
 import cors from "cors";
 import morgan from "morgan";
 import mongoose from "mongoose";
-import { UserController, WorkflowController } from "./controllers";
+import {
+  UserController,
+  WorkflowController,
+  UserApprovalController,
+} from "./controllers";
 import { IController } from "./interfaces";
 
 class App {
@@ -30,7 +34,7 @@ class App {
   }
 
   private connectToTheDatabase() {
-    mongoose.connect(`mongodb://localhost/vcomply`);
+    mongoose.connect(`mongodb://localhost/vcomply2`);
     mongoose.connection.on("open", () => console.log("\nmongoDB connected\n"));
     mongoose.connection.on("error", () =>
       console.log("\nmongoDB **NOT** connected\n")
@@ -45,6 +49,10 @@ class App {
 }
 
 const port = 5002;
-const controllers = [new UserController(), new WorkflowController()];
+const controllers = [
+  new UserController(),
+  new WorkflowController(),
+  new UserApprovalController(),
+];
 const app = new App(port, controllers);
 app.listen();

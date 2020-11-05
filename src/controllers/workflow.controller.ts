@@ -1,12 +1,19 @@
 import { Router, Request, Response } from "express";
 import { IController } from "../interfaces";
-import { workflowModel, ILevel, IApproval, IWorkflow } from "../models";
+import {
+  workflowModel,
+  ILevel,
+  IApproval,
+  IWorkflow,
+  userApprovalModel,
+} from "../models";
 import { checkJwt } from "../middlewares";
 
 export class WorkflowController implements IController {
   public path = "/workflow";
   public router = Router();
   private workflowModel = workflowModel;
+  private userApprovalModel = userApprovalModel;
 
   constructor() {
     this.initializeRoutes();
@@ -38,6 +45,7 @@ export class WorkflowController implements IController {
         action: "blocked",
       }));
       levelList.push({
+        approvalOrder: [],
         approvalType,
         approvals,
         status: "blocked",
@@ -48,6 +56,36 @@ export class WorkflowController implements IController {
     newWorkflow.status = "active";
     newWorkflow.currentLevel = 0;
 
+    const firstLevel = newWorkflow.levels[0];
+
+    // Send approval requests based on approval type for the first level
+    if (
+      firstLevel.approvalType === "any one" ||
+      firstLevel.approvalType === "round-robin"
+    ) {
+      for (let i = 0; i < firstLevel.approvals.length; i++) {
+        const approval = firstLevel.approvals[i];
+        const newUserApproval = new this.userApprovalModel();
+        newUserApproval.user = approval.user;
+        newUserApproval.workflow = newWorkflow._id;
+        newUserApproval.levelIndex = 0;
+        newUserApproval.approvalIndex = i;
+        approval.action = "pending";
+        await newUserApproval.save();
+      }
+    } else {
+      const approval = firstLevel.approvals[0];
+      const newUserApproval = new this.userApprovalModel();
+      newUserApproval.user = approval.user;
+      newUserApproval.workflow = newWorkflow._id;
+      newUserApproval.levelIndex = 0;
+      newUserApproval.approvalIndex = 0;
+      approval.action = "pending";
+      await newUserApproval.save();
+    }
+    // Activate first level
+    newWorkflow.levels[0].status = "active";
+
     try {
       await newWorkflow.save();
     } catch (e) {
@@ -55,13 +93,6 @@ export class WorkflowController implements IController {
     }
 
     return res.json({ success: true });
-  };
-
-  // Notify next Users for approval by creating Approval objects
-  private notifyNextUsers = async (workflow: IWorkflow) => {
-    const currentLevelIndex = workflow.currentLevel;
-    const currentLevel = workflow.levels[currentLevelIndex];
-    const approvalType = currentLevel.approvalType;
   };
 
   // GET all the workflows created by a user
@@ -78,7 +109,6 @@ export class WorkflowController implements IController {
       return res.json({ message: "Server Error" });
     }
   };
-
 }
 
 type ILevelType = "sequential" | "round-robin" | "any one";

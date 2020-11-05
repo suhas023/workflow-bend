@@ -17,6 +17,7 @@ export interface IApproval {
 
 export interface ILevel {
   approvalType: IApprovalType;
+  approvalOrder: number[];
   approvals: IApproval[];
   status: ILevelStatus;
 }
@@ -50,6 +51,7 @@ const workflowSchema = new Schema({
         enum: ["blocked", "active", "terminated", "executed"],
         default: "blocked",
       },
+      approvalOrder: [Number],
       approvals: [
         {
           user: { type: Schema.Types.ObjectId, ref: "User", required: true },

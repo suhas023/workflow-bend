@@ -68,6 +68,7 @@ export class UserController implements IController {
         },
       });
     } catch (e) {
+      console.log(e);
       res.status(500).json({ success: false, message: "Server Error" });
     }
   };
@@ -114,7 +115,7 @@ export class UserController implements IController {
     try {
       const users = await this.userModel
         .find({ approver: true })
-        .select("userId name email _id")
+        .select("name email _id")
         .lean();
       let userMap: IUserMap = {
         allIds: [],
